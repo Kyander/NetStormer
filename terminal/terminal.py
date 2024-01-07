@@ -18,7 +18,6 @@ class FileCompleter(Completer):
             if file_name.startswith(prefix):
                 yield Completion(file_name, -len(prefix))
 
-
 class CustomShell:
     def __init__(self):
         terminal_size = shutil.get_terminal_size()
@@ -59,12 +58,16 @@ class CustomShell:
             try:
                 if '~' in command:
                     command = os.path.expanduser(command)
-
-                subprocess.run(command, shell=True, check=True)
+                # Use subprocess to spawn a Bash shell
+                subprocess.run(command, shell=True, check=True, executable='/bin/bash')
 
             except subprocess.CalledProcessError as e:
-                return f"Command failed with return code {e.returncode}: {e.output.decode()}"
-
+                error_message = f"Command failed with return code {e.returncode}: "
+                if e.output is not None:
+                    error_message += e.output.decode()
+                else:
+                    error_message += "No output available."
+                return error_message
             except Exception as e:
                 return f"Error executing command: {e}"
 
