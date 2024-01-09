@@ -24,6 +24,7 @@ class CustomShell:
         os.environ['COLUMNS'] = str(terminal_size.columns)
         os.environ['LINES'] = str(terminal_size.lines)
         self.current_directory = os.getcwd()
+        TerminalData.root_dir = self.current_directory
         self.custom_style = Style.from_dict({
             'pygments.comment': '#ansigray',
             'pygments.keyword': '#ansiblue',
@@ -53,6 +54,10 @@ class CustomShell:
 
         elif actual_command == 'history':
             get_history()
+
+        elif actual_command == "import":
+            file = command.split(" ")[1]
+            import_scan(file)
 
         else:
             try:
