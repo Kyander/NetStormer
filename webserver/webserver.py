@@ -1,14 +1,32 @@
 # webserver/webserver.py
 import sqlite3
 from flask import Flask, render_template, request, session, jsonify, redirect
-
-app = Flask(__name__)
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+app = Flask(__name__, template_folder="templates")
 app.config['SECRET_KEY'] = 'the random string'
+
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
+class User(UserMixin):
+    def __init__(self, user_id):
+        self.id = user_id
+
+def authenticate(username, password):
+    # Example: Check if username and password match a user in your database
+    # If yes, return the user object; otherwise, return None
+    if username == 'admin' and password == 'password':
+        return User(1)
+    return None
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User(user_id)
 
 def get_db_connection():
 
     # Change the filepath later.
-    conn = sqlite3.connect("PycharmProjects/NetStormer/db/data/your_nmap_output")
+    conn = sqlite3.connect("/home/kyand/NetStormer/db/data/your_nmap_output")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -36,8 +54,13 @@ def get_tables_and_data():
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    if 'logged_in' in session and session['logged_in']:
-        if request.method == 'POST':
+    if not current_user.is_authenticated:
+        return redirect('login', code=302)
+    else:
+        if request.method == 'GET':
+            table_data = get_tables_and_data()
+            return render_template('index.html', table_data=table_data)
+        elif request.method == 'POST':
             user_input = request.form.get('user_input')
             try:
                 conn = get_db_connection()
@@ -48,25 +71,24 @@ def index():
 
             except Exception as e:
                 return jsonify({'error': str(e)})
-
-        elif request.method == 'GET':
-            table_data = get_tables_and_data()
-            return render_template('index.html', table_data=table_data)
-
-    else:
-        return render_template('login.html')
-
 # Login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.form['password'] == 'password' and request.form['username'] == 'admin':
-            session['logged_in'] = True
-            return redirect('index.html')
+        user = authenticate(request.form['username'], request.form['password'])
+        if user:
+            # Log in the user using Flask-Login
+            login_user(user)
+            return redirect('/', code=302)
     else:
         return render_template('login.html')
-
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect('login')
 @app.route('/query', methods=['GET', 'POST'])
+@login_required
 def query():
     if request.method == 'POST':
         user_input = request.form.get('user_input')
@@ -81,3 +103,6 @@ def query():
             return jsonify({'error': str(e)})
 
     return render_template('query.html')
+
+if __name__ == "__main__":
+    app.run(port=9999, debug=False)

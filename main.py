@@ -2,12 +2,15 @@ from terminal import CustomShell
 from flask import Flask, render_template, request, session, jsonify, redirect
 import subprocess
 import os
+from terminal.data import TerminalData
 
-app = Flask(__name__)
 def start_webserver():
-    #with open(os.devnull, 'w') as null_file:
-    #    subprocess.Popen(['gunicorn', '-c', 'webserver/gunicorn_config.py', 'webserver.webserver:app'], stdout=null_file)
-    app.run(debug=True)
+    web_server_command = 'python3 ./webserver/webserver.py'
+
+    # Use os.devnull to redirect both stdout and stderr to /dev/null
+    with open(os.devnull, 'w') as null_file:
+        # Start the web server as a separate process
+        subprocess.Popen(web_server_command, shell=True, stdout=null_file, stderr=subprocess.STDOUT)
 
 if __name__ == '__main__':
     start_webserver()
