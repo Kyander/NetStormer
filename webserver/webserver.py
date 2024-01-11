@@ -1,9 +1,15 @@
 # webserver/webserver.py
 import sqlite3
-from flask import Flask, render_template, request, session, jsonify, redirect
+import os
+from sanitize import InputSanitizer
+from bcrypt import checkpw
+from flask import Flask, render_template, request, jsonify, redirect
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-app = Flask(__name__, template_folder="templates")
-app.config['SECRET_KEY'] = 'the random string'
+
+cwd = os.getcwd()
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.urandom(12)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -13,11 +19,19 @@ class User(UserMixin):
         self.id = user_id
 
 def authenticate(username, password):
-    # Example: Check if username and password match a user in your database
-    # If yes, return the user object; otherwise, return None
-    if username == 'admin' and password == 'password':
-        return User(1)
-    return None
+    data_dir = f'{cwd}/db/data/user.db'
+    username = InputSanitizer.sanitize_input(username)
+    with sqlite3.connect(data_dir) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username=?", (username,))
+        user_data = cursor.fetchone()
+
+        if user_data:
+            stored_password = user_data[2].encode('utf-8')
+            password = password.encode('utf-8')
+            if checkpw(password, stored_password):
+                return User(1)  # Assuming user_id is at index 0
+        return None
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -26,7 +40,8 @@ def load_user(user_id):
 def get_db_connection():
 
     # Change the filepath later.
-    conn = sqlite3.connect("/home/kyand/NetStormer/db/data/your_nmap_output")
+    conn = sqlite3.connect(f"{cwd}NetStormer/db/data/your_nmap_output")
+
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -50,7 +65,6 @@ def get_tables_and_data():
 
     conn.close()
     return table_data
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -82,11 +96,13 @@ def login():
             return redirect('/', code=302)
     else:
         return render_template('login.html')
+
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect('login')
+
 @app.route('/query', methods=['GET', 'POST'])
 @login_required
 def query():
@@ -104,5 +120,10 @@ def query():
 
     return render_template('query.html')
 
-if __name__ == "__main__":
+@app.route('/error', methods=['GET', 'POST'])
+def error():
+    if request.method == 'GET':
+        return render_template('404.html')
+
+if __name__ == '__main__':
     app.run(port=9999, debug=False)
