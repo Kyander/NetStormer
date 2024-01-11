@@ -126,4 +126,4 @@ def error():
         return render_template('404.html')
 
 if __name__ == '__main__':
-    app.run(port=9999, debug=False)
+    app.run(host='0.0.0.0', port=9999, debug=False)
