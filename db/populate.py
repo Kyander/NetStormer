@@ -3,8 +3,9 @@ import sqlite3
 from terminal.data import TerminalData
 
 class NmapToSqlite:
-    def __init__(self):
-        self.data_dir = "{}/db/data/".format(TerminalData.root_dir)
+    def __init__(self, db_name):
+        data_dir = "{}/db/data/".format(TerminalData.root_dir)
+        self.db_file = "{}{}.db".format(data_dir, db_name)
 
     def parse_nmap_xml(self, xml_file):
         tree = ET.parse(xml_file)
@@ -31,41 +32,39 @@ class NmapToSqlite:
                 'ports': ports
             })
 
-    def create_sqlite_db(self, db_name):
-        data_dir = "{}{}".format(self.data_dir, db_name)
-        print(data_dir)
-        conn = sqlite3.connect(data_dir)
+    def check_duplicate_host(self):
+        # Currently unused, might be helpful later
+        conn = sqlite3.connect(self.db_file)
+        for host in self.results:
+            cursor = conn.execute("SELECT ip FROM hosts WHERE ip = ?", (host['ip'],))
+            results = cursor.fetchall()
+            if results:
+                duplicate_ip = results[0][0]
+                answer = input("{} already exists in the database, do you wish to update it? (y/n)".format(duplicate_ip))
+                if answer.lower() == "n":
+                    print(self.results)
+                    self.results.remove(host)
+                    print(self.results)
+
+    def create_sqlite_db(self):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
-        # Create tables
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS hosts (
                 id INTEGER PRIMARY KEY,
-                ip TEXT NOT NULL
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS open_ports (
-                id INTEGER PRIMARY KEY,
-                host_id INTEGER,
+                ip TEXT NOT NULL,
                 port INTEGER NOT NULL,
                 service_name TEXT,
-                version TEXT,
-                FOREIGN KEY (host_id) REFERENCES hosts (id)
+                version TEXT
             )
         ''')
 
-        # Insert data
         for host_data in self.results:
-            cursor.execute("INSERT INTO hosts (ip) VALUES (?)", (host_data['ip'],))
-            host_id = cursor.lastrowid
-
             for port_data in host_data['ports']:
-                cursor.execute("INSERT INTO open_ports (host_id, port, service_name, version) VALUES (?, ?, ?, ?)",
-                               (host_id, port_data['port'], port_data['service'], port_data['version']))
+                cursor.execute("INSERT OR REPLACE INTO hosts (ip, port, service_name, version) VALUES (?, ?, ?, ?)",
+                               (host_data['ip'], port_data['port'], port_data['service'], port_data['version']))
 
-        # Commit changes and close connection
         conn.commit()
         conn.close()
 

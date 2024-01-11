@@ -92,8 +92,7 @@ class CustomShell:
             get_history()
 
         elif actual_command == "import":
-            file = command.split(" ")[1]
-            import_scan(file)
+            import_scan(command)
 
         else:
             try:
