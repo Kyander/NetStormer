@@ -2,7 +2,9 @@ import xml.etree.ElementTree as ET
 import sqlite3
 import bcrypt
 import os
+import getpass
 from terminal.data import TerminalData
+from webserver.sanitize import InputSanitizer
 
 cwd = os.getcwd()
 
@@ -92,14 +94,14 @@ class ManipulateUsers:
             CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            role TEXT CHECK (role IN ('admin', 'user')) NOT NULL
             );
         ''')
         conn.commit()
         conn.close()
 
     def create_admin(self):
-        db_name = 'users.db'
         default_user = 'admin'
         default_password = 'admin'
         hashed_password = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt())
@@ -109,9 +111,29 @@ class ManipulateUsers:
 
         conn = sqlite3.connect(data_dir)
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?) ON CONFLICT(username) DO NOTHING",
-                       (default_user, hashed_password.decode('utf-8')))
+        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?) ON CONFLICT(username) DO NOTHING",
+                       (default_user, hashed_password.decode('utf-8'), "admin"))
         conn.commit()
         conn.close()
 
+    def create_user(self):
+        new_user = input("Enter a username: ")
+        new_user = InputSanitizer.sanitize_input(new_user)
+        new_user_password = getpass.getpass()
+        role = input("Enter the user's role('admin' or 'user'): ").lower()
+        if role != 'admin' or 'user':
+            print("You must select either 'admin' or 'user'")
+        if new_user_password == 'admin':
+            print("Password must not be equal to admin")
+            exit()
+        hashed_password = bcrypt.hashpw(new_user_password.encode('utf-8'), bcrypt.gensalt())
+        data_dir = f"{cwd}/db/data/user.db"
+
+        conn = sqlite3.connect(data_dir)
+        cursor = conn.cursor()
+        cursor.execute(f"INSERT INTO users (username, password, role) VALUES (?, ?, ?) ON CONFLICT(username) DO NOTHING",
+                       (new_user, hashed_password.decode('utf-8'), role))
+        conn.commit()
+        conn.close()
+        print(f"Your username is: {new_user}. You can now sign into the webserver.")
 

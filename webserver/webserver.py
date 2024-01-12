@@ -3,7 +3,7 @@ import sqlite3
 import os
 from sanitize import InputSanitizer
 from bcrypt import checkpw
-from flask import Flask, render_template, request, jsonify, redirect
+from flask import Flask, render_template, request, jsonify, redirect, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 
 cwd = os.getcwd()
@@ -14,9 +14,11 @@ app.config['SECRET_KEY'] = os.urandom(12)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+
 class User(UserMixin):
     def __init__(self, user_id):
         self.id = user_id
+
 
 def authenticate(username, password):
     data_dir = f'{cwd}/db/data/user.db'
@@ -25,25 +27,33 @@ def authenticate(username, password):
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE username=?", (username,))
         user_data = cursor.fetchone()
-
         if user_data:
             stored_password = user_data[2].encode('utf-8')
             password = password.encode('utf-8')
             if checkpw(password, stored_password):
+                session['role'] = user_data[3]
                 return User(1)  # Assuming user_id is at index 0
         return None
+
+
+def is_admin():
+    if session['role'] != 'admin':
+        return None
+
 
 @login_manager.user_loader
 def load_user(user_id):
     return User(user_id)
 
+
 def get_db_connection():
 
     # Change the filepath later.
-    conn = sqlite3.connect(f"{cwd}NetStormer/db/data/your_nmap_output")
+    conn = sqlite3.connect(f"{cwd}/db/data/your_nmap_output")
 
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def get_tables_and_data():
     conn = get_db_connection()
@@ -66,8 +76,11 @@ def get_tables_and_data():
     conn.close()
     return table_data
 
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    if session['role'] != 'admin':
+        return None
     if not current_user.is_authenticated:
         return redirect('login', code=302)
     else:
@@ -85,6 +98,8 @@ def index():
 
             except Exception as e:
                 return jsonify({'error': str(e)})
+
+
 # Login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -97,15 +112,19 @@ def login():
     else:
         return render_template('login.html')
 
+
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect('login')
 
+
 @app.route('/query', methods=['GET', 'POST'])
 @login_required
 def query():
+    if session['role'] != 'admin':
+        return None
     if request.method == 'POST':
         user_input = request.form.get('user_input')
         try:
@@ -120,10 +139,11 @@ def query():
 
     return render_template('query.html')
 
-@app.route('/error', methods=['GET', 'POST'])
+
+@app.route('/error', methods=['GET'])
 def error():
-    if request.method == 'GET':
-        return render_template('404.html')
+    return render_template('404.html')
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9999, debug=False)
