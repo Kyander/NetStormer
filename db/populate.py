@@ -137,3 +137,26 @@ class ManipulateUsers:
         conn.close()
         print(f"Your username is: {new_user}. You can now sign into the webserver.")
 
+    def update_user_password(self):
+        user = input("Enter a username: ")
+        user = InputSanitizer.sanitize_input(user)
+        new_password = getpass.getpass()
+        if new_password == 'admin':
+            print("Password must not be equal to admin")
+            exit()
+
+        hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+        data_dir = f"{cwd}/db/data/user.db"
+        conn = sqlite3.connect(data_dir)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (user,))
+        existing_user = cursor.fetchone()
+
+        if not existing_user:
+            print(f"User '{user}' not found.")
+        else:
+            cursor.execute("UPDATE users SET password = ? WHERE username = ?", (hashed_password.decode('utf-8'), user))
+            conn.commit()
+            print(f"Password for user '{user}' updated successfully.")
+        conn.close()
+
