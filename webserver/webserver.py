@@ -3,7 +3,7 @@ import sqlite3
 import os
 from sanitize import InputSanitizer
 from bcrypt import checkpw
-from flask import Flask, render_template, request, jsonify, redirect, session
+from flask import Flask, render_template, request, jsonify, redirect, session, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 
 cwd = os.getcwd()
@@ -33,11 +33,6 @@ def authenticate(username, password):
             if checkpw(password, stored_password):
                 session['role'] = user_data[3]
                 return User(1)  # Assuming user_id is at index 0
-        return None
-
-
-def is_admin():
-    if session['role'] != 'admin':
         return None
 
 
@@ -79,10 +74,10 @@ def get_tables_and_data():
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    if session['role'] != 'admin':
-        return None
     if not current_user.is_authenticated:
         return redirect('login', code=302)
+    elif session['role'] != 'admin':
+        return redirect(url_for('error'))
     else:
         if request.method == 'GET':
             table_data = get_tables_and_data()
@@ -124,7 +119,7 @@ def logout():
 @login_required
 def query():
     if session['role'] != 'admin':
-        return None
+        return redirect(url_for('error'))
     if request.method == 'POST':
         user_input = request.form.get('user_input')
         try:
