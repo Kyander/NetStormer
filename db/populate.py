@@ -1,6 +1,8 @@
 import xml.etree.ElementTree as ET
 import sqlite3
 from terminal.data import TerminalData
+import os
+
 
 class NmapToSqlite:
     def __init__(self, db_name):
@@ -68,3 +70,64 @@ class NmapToSqlite:
         conn.commit()
         conn.close()
 
+
+class ProjectDb:
+    def __init__(self):
+        self.project_root_dir = "{}/db/data/projects/".format(TerminalData.root_dir)
+        self.default_project_db_file = "{}/db/data/internal/projects.db".format(TerminalData.root_dir)
+
+    def create_sqlite_db(self, name, description, config):
+        conn = sqlite3.connect(self.default_project_db_file)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                config TEXT NOT NULL
+            )
+        ''')
+        if self.exists(name):
+            print("Project {} already exists in the database, please use a different project name or delete the existing one.".format(name))
+            conn.commit()
+            conn.close()
+            return 0
+        cursor.execute("INSERT INTO projects (name, description, config) VALUES (?, ?, ?)",
+                    (name, description, config))
+        conn.commit()
+        conn.close()
+
+    def exists(self, name):
+        conn = sqlite3.connect(self.default_project_db_file)
+        cursor = conn.cursor()
+        results = cursor.execute("SELECT name FROM projects WHERE name = ?", (name,)).fetchall()
+        if results:
+            return 1
+        else:
+            return 0
+
+    def list_all_projects(self):
+        conn = sqlite3.connect(self.default_project_db_file)
+        cursor = conn.execute("SELECT name FROM projects")
+        results = cursor.fetchall()
+        if results:
+            conn.close()
+            return results
+        else:
+            conn.close()
+            return [("No projects found... Create one with hihi command!",)] # Don't worry... too lazy
+
+    def delete_project(self, name):
+        conn = sqlite3.connect(self.default_project_db_file)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM projects WHERE name = ?", (name,))
+        conn.commit()
+        conn.close()
+
+    def get_project_info(self, name):
+        conn = sqlite3.connect(self.default_project_db_file)
+        cursor = conn.cursor()
+        results = cursor.execute("SELECT name, description, config FROM projects WHERE name = ?", (name,)).fetchall()
+        conn.close()
+        return results

@@ -2,6 +2,9 @@ import sys
 import os
 from terminal.data import TerminalData
 from db import populate
+from terminal.utils.project_manager import ProjectManager
+
+
 def exit_command():
     """
     Exit the shell.
@@ -12,10 +15,12 @@ def exit_command():
     print("Exiting now...")
     sys.exit(1)
 
+
 def get_history():
     for idx, cmd in enumerate(TerminalData.command_history, start=1):
         print(f'{idx}: {cmd}')
     return None
+
 
 def import_scan(command):
     if " " not in command or "-h" in command:
@@ -38,3 +43,32 @@ def import_scan(command):
     pop.parse_nmap_xml(file)
     pop.create_sqlite_db()
     print("Done!")
+
+
+def project_utils(command):
+    parts = command.split(" ")
+
+    if len(parts) < 2:
+        print("invalid HELP")
+        return
+
+    sub_command = parts[1]
+    args = parts[2:]
+
+    pm = ProjectManager()
+    if sub_command.lower() == "create":
+        name = input("Project Name : ")
+        description = input("Project Description : ")
+        config_path = "should be hardcoded."
+        pm.create_project(name, description, config_path)
+    elif sub_command.lower() == "delete":
+        name = args[0]
+        pm.delete_project(name)
+    elif sub_command.lower() == "list":
+        pm.list_projects()
+    elif sub_command.lower() == "select":
+        project = args[0]
+        pm.select_current_project(project)
+    elif sub_command.lower() == "info":
+        project = args[0]
+        pm.get_project_info(project)

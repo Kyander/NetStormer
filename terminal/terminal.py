@@ -94,6 +94,9 @@ class CustomShell:
         elif actual_command == "import":
             import_scan(command)
 
+        elif actual_command == "project":
+            project_utils(command)
+
         else:
             try:
                 if '~' in command:
@@ -122,7 +125,7 @@ class CustomShell:
 
         while True:
             try:
-                userInput = session.prompt(f'\n┌─[✗]─[{os.getlogin()}@{os.uname().nodename}]─[{self.current_directory}]\n└──╼ $ ')
+                userInput = session.prompt(f'\n┌─[✗]─({TerminalData.current_project})[{os.getlogin()}@{os.uname().nodename}]─[{self.current_directory}]\n└──╼ $ ')
                 output = self.execute_command(userInput)
                 if output is not None:
                     print(output)
