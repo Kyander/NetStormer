@@ -56,8 +56,10 @@ class CustomShell:
             get_history()
 
         elif actual_command == "import":
-            file = command.split(" ")[1]
-            import_scan(file)
+            import_scan(command)
+
+        elif actual_command == "project":
+            project_utils(command)
 
         else:
             try:
@@ -85,8 +87,9 @@ class CustomShell:
 
         while True:
             try:
-                user_input = session.prompt(f'\n┌─[✗]─[{os.getlogin()}@{os.uname().nodename}]─[{self.current_directory}]\n└──╼ $ ')
-                output = self.execute_command(user_input)
+                userInput = session.prompt(f'\n┌─[✗]─({TerminalData.current_project})[{os.getlogin()}@{os.uname().nodename}]─[{self.current_directory}]\n└──╼ $ ')
+                output = self.execute_command(userInput)
+
                 if output is not None:
                     print(output)
             except KeyboardInterrupt:
