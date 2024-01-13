@@ -17,6 +17,8 @@ class ProjectManager:
         if os.path.exists("{}{}".format(self.project_root, name)) or os.path.exists("{}{}".format(self.project_db_dir, name)):
             print("Project \"{}\" already exists, delete it or user another name.".format(name))
             return 0
+        if not os.path.exists(self.project_db_dir):
+            os.mkdir(self.project_db_dir)
         os.mkdir("{}{}".format(self.project_root, name))
         os.mkdir("{}{}".format(self.project_db_dir, name))
         project_db = ProjectDb()
