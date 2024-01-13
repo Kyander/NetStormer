@@ -9,6 +9,7 @@ class ProjectManager:
         self.db_data_dir = "{}/db/data/".format(TerminalData.root_dir)
         self.project_root = "{}/projects/".format(TerminalData.root_dir)
         self.project_db_dir = "{}/db/data/projects/".format(TerminalData.root_dir)
+        self.internal_db_dir = "{}/db/data/internal/".format(TerminalData.root_dir)
         if not os.path.exists(self.project_root):
             os.mkdir(self.project_root)
 
@@ -19,6 +20,8 @@ class ProjectManager:
             return 0
         if not os.path.exists(self.project_db_dir):
             os.mkdir(self.project_db_dir)
+        if not os.path.exists(self.internal_db_dir):
+            os.mkdir(self.internal_db_dir)
         os.mkdir("{}{}".format(self.project_root, name))
         os.mkdir("{}{}".format(self.project_db_dir, name))
         project_db = ProjectDb()
