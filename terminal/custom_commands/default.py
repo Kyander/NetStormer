@@ -27,7 +27,11 @@ def import_scan(command):
         print("HELP HERE")
         return 0
     else:
-        file = command.split(" ")[1]
+        file = command.split(" ")[1]  # get file name
+
+    if TerminalData.current_project == "none":
+        print("No project currently selected, please use \"project select\" to select one")
+        return 0
 
     if os.path.exists(file):
         file_name, file_extension = os.path.splitext(os.path.basename(file))
@@ -62,13 +66,14 @@ def project_utils(command):
         config_path = "should be hardcoded."
         pm.create_project(name, description, config_path)
     elif sub_command.lower() == "delete":
-        name = args[0]
-        pm.delete_project(name)
+        project = " ".join(args[0:])
+        pm.delete_project(project)
     elif sub_command.lower() == "list":
         pm.list_projects()
     elif sub_command.lower() == "select":
-        project = args[0]
+        project = " ".join(args[0:])
+        print(project)
         pm.select_current_project(project)
     elif sub_command.lower() == "info":
-        project = args[0]
+        project = " ".join(args[0:])
         pm.get_project_info(project)

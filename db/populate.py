@@ -6,7 +6,7 @@ import os
 
 class NmapToSqlite:
     def __init__(self, db_name):
-        data_dir = "{}/db/data/".format(TerminalData.root_dir)
+        data_dir = "{}/db/data/projects/{}/".format(TerminalData.root_dir, TerminalData.current_project)
         self.db_file = "{}{}.db".format(data_dir, db_name)
 
     def parse_nmap_xml(self, xml_file):
@@ -58,7 +58,8 @@ class NmapToSqlite:
                 ip TEXT NOT NULL,
                 port INTEGER NOT NULL,
                 service_name TEXT,
-                version TEXT
+                version TEXT,
+                UNIQUE(ip, port)
             )
         ''')
 
