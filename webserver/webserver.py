@@ -1,12 +1,69 @@
-# webserver/webserver.py
-import sqlite3
-import os
 from sanitize import InputSanitizer
 from bcrypt import checkpw
 from flask import Flask, render_template, request, jsonify, redirect, session, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+#from terminal.data import TerminalData
+import sqlite3
+import os
 
-cwd = os.getcwd()
+
+def find_db_files(directory='.'):
+    db_files = []
+
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            # the "Select a project" file is so there is a default option that gets selected.
+            if file.endswith('.db') and not file.endswith('projects.db') and not file.endswith('user.db') or file.endswith("Select a Project"):
+                db_files.append(os.path.join(root, file))
+
+    return db_files
+
+
+def get_tables_and_data(db_file):
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [table[0] for table in cursor.fetchall()]
+
+    table_data = []
+
+    for table in tables:
+        cursor.execute(f"PRAGMA table_info({table});")
+        columns = [column[1] for column in cursor.fetchall()]
+
+        cursor.execute(f"SELECT * FROM {table};")
+        rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        table_data.append({"table": table, "columns": columns, "rows": rows})
+
+    conn.close()
+    return table_data
+
+
+class DB:
+    def __init__(self, db_files):
+        self.db_files = db_files
+
+    def api_get_file_list(self):
+        if not self.db_files:
+            return jsonify({"error": "No database files found."})
+
+        file_names = [os.path.basename(db_file) for db_file in self.db_files]
+        return jsonify(file_names)
+
+    def api_get_table_data(self, project_name):
+        if not self.db_files:
+            return jsonify({"error": "No database files found."})
+
+        if project_name not in [os.path.basename(db_file) for db_file in self.db_files]:
+            return jsonify({"error": "Invalid project name."})
+
+        selected_db_file = [db_file for db_file in self.db_files if project_name == os.path.basename(db_file)][0]
+
+        table_data = get_tables_and_data(selected_db_file)
+
+        return jsonify({'tables': table_data})
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(12)
@@ -15,13 +72,18 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 
+db_files = find_db_files()
+api_instance = DB(db_files)
+
+
 class User(UserMixin):
     def __init__(self, user_id):
         self.id = user_id
 
 
+# TODO Change the filepath later.
 def authenticate(username, password):
-    data_dir = f'{cwd}/db/data/user.db'
+    data_dir = '/home/kali/PycharmProjects/NetStormer/db/data/user.db'
     username = InputSanitizer.sanitize_input(username)
     with sqlite3.connect(data_dir) as conn:
         cursor = conn.cursor()
@@ -43,33 +105,21 @@ def load_user(user_id):
 
 def get_db_connection():
 
-    # Change the filepath later.
-    conn = sqlite3.connect(f"{cwd}/db/data/your_nmap_output")
+    # TODO Change the filepath later.
+    conn = sqlite3.connect("/home/kali/PycharmProjects/NetStormer/db/data/projects/deez/your_nmap_output.db")
 
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def get_tables_and_data():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+@app.route('/api/getFileList')
+def api_get_file_list():
+    return api_instance.api_get_file_list()
 
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = [table[0] for table in cursor.fetchall()]
 
-    table_data = []
-
-    for table in tables:
-        cursor.execute(f"PRAGMA table_info({table});")
-        columns = [column[1] for column in cursor.fetchall()]
-
-        cursor.execute(f"SELECT * FROM {table};")
-        rows = [dict(row) for row in cursor.fetchall()]
-
-        table_data.append((table, columns, rows))
-
-    conn.close()
-    return table_data
+@app.route('/api/getTableData/<project_name>')
+def api_get_table_data(project_name):
+    return api_instance.api_get_table_data(project_name)
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -80,8 +130,8 @@ def index():
         return redirect(url_for('error'))
     else:
         if request.method == 'GET':
-            table_data = get_tables_and_data()
-            return render_template('index.html', table_data=table_data)
+            file_names = api_instance.api_get_file_list().json
+            return render_template('index.html', file_names=file_names)
         elif request.method == 'POST':
             user_input = request.form.get('user_input')
             try:

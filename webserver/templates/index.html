@@ -2,46 +2,133 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Flask App</title>
-
+    <title>Database Viewer</title>
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 </head>
 <body>
 
-<div class="container">
+<div class="container-fluid">
     <h1 class="mt-5">Database Viewer</h1>
 
-    {% for table, columns, rows in table_data %}
-        <h2>{{ table }}</h2>
+    <label for="fileDropdown">Select a project:</label>
+    <select id="fileDropdown"></select>
 
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    {% for column in columns %}
-                        <th>{{ column }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in rows %}
-                    <tr>
-                        {% for value in row.values() %}
-                            <td>{{ value }}</td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% endfor %}
-</div>
+    <!-- Placeholder for displaying the selected project and data -->
+    <div id="selectedProject"></div>
 
-<!-- Bootstrap JavaScript (Optional) -->
-<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-i7QibV8vAch0c5V9NhAc5X9RQy2D9YqEZiI3b4BL5UqqszC0z5VZ5Q2PI2EM+Xr2" crossorigin="anonymous"></script>
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <!-- Bootstrap JavaScript (Optional) -->
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-i7QibV8vAch0c5V9NhAc5X9RQy2D9YqEZiI3b4BL5UqqszC0z5VZ5Q2PI2EM+Xr2" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
 
+    <!-- Your dynamic file dropdown JavaScript -->
+    <script>
+        const dropdown = document.getElementById("fileDropdown");
+        const selectedProjectDiv = document.getElementById("selectedProject");
+
+        fetch('http://127.0.0.1:9999/api/getFileList')
+            .then(response => response.json())
+            .then(data => {
+                // Log the received data to the console
+                console.log('Received data:', data);
+
+                // Clear existing options
+                dropdown.innerHTML = "";
+
+                // Check if data is an array
+                if (Array.isArray(data)) {
+                    // Create an option for each item in the array
+                    data.forEach(item => {
+                        const option = document.createElement("option");
+                        option.text = item;
+                        dropdown.add(option);
+                    });
+                } else {
+                    console.error('Unexpected data format:', data);
+                }
+            })
+            .catch(error => console.error('Error fetching file list:', error));
+
+        // Add event listener for the change event of the dropdown
+        dropdown.addEventListener("change", () => {
+            // Get the selected option
+            const selectedOption = dropdown.options[dropdown.selectedIndex].text;
+
+            // Ensure the selected option is properly formatted (remove leading and trailing slashes)
+            const formattedOption = selectedOption.replace(/^\/+|\/+$/g, '');
+
+            // Display the selected project and table data
+            fetchAndDisplayTableData(formattedOption);
+        });
+
+        // Function to fetch and display table data for the selected project
+        function fetchAndDisplayTableData(selectedOption) {
+    fetch(`http://127.0.0.1:9999/api/getTableData/${selectedOption}`)
+        .then(response => response.json())
+        .then(data => {
+            // Log the received data to the console
+            console.log('Received table data:', data);
+
+            // Clear the existing table
+            const table = document.querySelector('table');
+            table.innerHTML = '';
+
+            // Check if the 'tables' property exists in the data object
+            if (data && data.tables && Array.isArray(data.tables) && data.tables.length > 0) {
+                // Assume the first table in the array
+                const firstTable = data.tables[0];
+
+                // Create the table header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+
+                // Add a header cell for each column
+                firstTable.columns.forEach(column => {
+                    const th = document.createElement('th');
+                    th.textContent = column;
+                    headerRow.appendChild(th);
+                });
+
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                // Create the table body
+                const tbody = document.createElement('tbody');
+
+                // Loop through rows and display data
+                firstTable.rows.forEach(row => {
+                    const tr = document.createElement('tr');
+
+                    // Loop through columns and create cells
+                    firstTable.columns.forEach(column => {
+                        const td = document.createElement('td');
+                        td.textContent = row[column];
+                        tr.appendChild(td);
+                    });
+
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(tbody);
+            } else {
+                console.error('Data or tables property is missing or invalid in the response:', data);
+            }
+        })
+        .catch(error => console.error('Error fetching table data:', error));
+}
+
+    </script>
+<table class="table">
+        <!-- main table descriptor -->
+        <thead>
+            <tr>
+                <th></th>
+                <th>Header</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+    </table>
 </body>
 </html>

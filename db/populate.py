@@ -1,22 +1,15 @@
 import xml.etree.ElementTree as ET
 import sqlite3
 import bcrypt
-import os
 import getpass
-from terminal.data import TerminalData
 import os
 from webserver.sanitize import InputSanitizer
-
-cwd = os.getcwd()
+from terminal.data import TerminalData
 
 class NmapToSqlite:
     def __init__(self, db_name):
         data_dir = "{}/db/data/projects/{}/".format(TerminalData.root_dir, TerminalData.current_project)
         self.db_file = "{}{}.db".format(data_dir, db_name)
-
-class NmapToSqlite:
-    def __init__(self, cwd):
-        self.data_dir = f"{cwd}/db/data/".format(TerminalData.root_dir)
 
     def parse_nmap_xml(self, xml_file):
         tree = ET.parse(xml_file)
@@ -145,14 +138,13 @@ class ProjectDb:
 class ManipulateUsers:
 
     def __init__(self):
-        self.data_dir = f"{cwd}/db/data/".format(TerminalData.root_dir)
+        self.data_dir = "{}db/data/".format(TerminalData.root_dir)
 
     def create_database(self):
         # Create the database directory if it doesn't exist
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
-        data_dir = f"{cwd}/db/data/".format(TerminalData.root_dir)
-        data_dir = f'{data_dir}/user.db'
+        data_dir = "{}db/data/user.db".format(TerminalData.root_dir)
 
         conn = sqlite3.connect(data_dir)
         cursor = conn.cursor()
@@ -172,8 +164,7 @@ class ManipulateUsers:
         default_password = 'admin'
         hashed_password = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt())
 
-        data_dir = f"{cwd}/db/data/".format(TerminalData.root_dir)
-        data_dir = f'{data_dir}/user.db'
+        data_dir = "{}db/data/user.db".format(TerminalData.root_dir)
 
         conn = sqlite3.connect(data_dir)
         cursor = conn.cursor()
@@ -193,7 +184,7 @@ class ManipulateUsers:
             print("Password must not be equal to admin")
             exit()
         hashed_password = bcrypt.hashpw(new_user_password.encode('utf-8'), bcrypt.gensalt())
-        data_dir = f"{cwd}/db/data/user.db"
+        data_dir = "{}/db/data/user.db"
 
         conn = sqlite3.connect(data_dir)
         cursor = conn.cursor()
@@ -212,7 +203,7 @@ class ManipulateUsers:
             exit()
 
         hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
-        data_dir = f"{cwd}/db/data/user.db"
+        data_dir = "{}/db/data/user.db"
         conn = sqlite3.connect(data_dir)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE username = ?", (user,))
