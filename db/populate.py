@@ -132,3 +132,48 @@ class ProjectDb:
         results = cursor.execute("SELECT name, description, config FROM projects WHERE name = ?", (name,)).fetchall()
         conn.close()
         return results
+
+class NetStormer:
+    def __init__(self, excluded_ips, ports):
+        self.current_project_db_dir = "{}/db/data/projects/{}/".format(TerminalData.root_dir, TerminalData.current_project)
+        all_files = os.listdir(self.current_project_db_dir)
+        self.scan_files = [file for file in all_files if file.endswith(".db")]
+        self.excluded_ips = excluded_ips
+        self.ports = ports
+
+    def get_sprayable_ips(self):
+        sprayable_ips = []
+        for scan in self.scan_files:
+            conn = sqlite3.connect("{}{}".format(self.current_project_db_dir, scan))
+            cursor = conn.cursor()
+            query = "SELECT ip, port FROM hosts WHERE port IN ({})".format(','.join(['?'] * len(self.ports)))
+            results = cursor.execute(query, self.ports).fetchall()
+            sprayable_ips.append(results)
+
+        return sprayable_ips
+
+def display_database_data(database_path):
+    try:
+        # Connect to the SQLite database
+        connection = sqlite3.connect(database_path)
+        cursor = connection.cursor()
+
+        # Execute a SELECT query to fetch all rows from the table
+        cursor.execute("SELECT * FROM hosts")
+        rows = cursor.fetchall()
+
+        # Display the header
+        print("{:<5} {:<15} {:<10} {:<20} {:<15}".format("ID", "IP", "Port", "Service Name", "Version"))
+        print("="*65)
+
+        # Display each row
+        for row in rows:
+            print("{:<5} {:<15} {:<10} {:<20} {:<15}".format(*row))
+
+    except sqlite3.Error as e:
+        print("Error accessing the database:", e)
+
+    finally:
+        # Close the database connection
+        if connection:
+            connection.close()

@@ -97,6 +97,12 @@ class CustomShell:
         elif actual_command == "project":
             project_utils(command)
 
+        elif actual_command == "storm":
+            storm(command)
+
+        elif actual_command == "nmap.txt":
+            show_scan()
+
         else:
             try:
                 if '~' in command:
