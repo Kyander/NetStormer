@@ -40,7 +40,6 @@ class LocalPathCompleter(Completer):
                     display=[("bg:ansibrightblue", f"{name}")],
                 )
 
-
 class CustomShell:
     """
     The CustomShell class represents a custom interactive shell session.
