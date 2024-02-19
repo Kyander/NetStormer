@@ -7,24 +7,26 @@ from webserver.sanitize import InputSanitizer
 from terminal.data import TerminalData
 
 class NmapToSqlite:
-    def __init__(self, db_name):
+    def __init__(self, db_name: str) -> None:
         data_dir = "{}/db/data/projects/{}/".format(TerminalData.root_dir, TerminalData.current_project)
         self.db_file = "{}{}.db".format(data_dir, db_name)
+        self.results: list[dict[str, str | None | list[dict[str, str]]]] = []
 
-    def parse_nmap_xml(self, xml_file):
+    def parse_nmap_xml(self, xml_file: str) -> None:
         tree = ET.parse(xml_file)
         root = tree.getroot()
 
-        self.results = []
-
         for host in root.findall(".//host"):
-            ip_address = host.find(".//address[@addrtype='ipv4']").attrib['addr']
+            address_element = host.find(".//address[@addrtype='ipv4']")
+            ip_address = address_element.attrib['addr'] if address_element is not None else None
 
-            ports = []
+            ports: list[dict[str, str]] = []
             for port in host.findall(".//port"):
                 port_number = port.attrib['portid']
-                service_name = port.find(".//service").attrib.get('name', 'Unknown')
-                version = port.find(".//service").attrib.get('version', 'Unknown')
+                service_element = port.find(".//service")
+                service_name = service_element.attrib.get('name', 'Unknown') if service_element is not None else 'Unknown'
+                service_element = port.find(".//service") if port is not None else None
+                version = service_element.attrib.get('version', 'Unknown') if service_element is not None else 'Unknown'
                 ports.append({
                     'port': port_number,
                     'service': service_name,
@@ -35,8 +37,9 @@ class NmapToSqlite:
                 'ip': ip_address,
                 'ports': ports
             })
+            return None
 
-    def check_duplicate_host(self):
+    def check_duplicate_host(self) -> None:
         # Currently unused, might be helpful later
         conn = sqlite3.connect(self.db_file)
         for host in self.results:
@@ -49,8 +52,9 @@ class NmapToSqlite:
                     print(self.results)
                     self.results.remove(host)
                     print(self.results)
+        return None
 
-    def create_sqlite_db(self):
+    def create_sqlite_db(self) -> None:
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
@@ -66,20 +70,24 @@ class NmapToSqlite:
         ''')
 
         for host_data in self.results:
-            for port_data in host_data['ports']:
-                cursor.execute("INSERT OR REPLACE INTO hosts (ip, port, service_name, version) VALUES (?, ?, ?, ?)",
-                               (host_data['ip'], port_data['port'], port_data['service'], port_data['version']))
+            if isinstance(host_data['ports'], list):
+                for port_data in host_data['ports']:
+                    cursor.execute("INSERT OR REPLACE INTO hosts (ip, port, service_name, version) VALUES (?, ?, ?, ?)",
+                                   (host_data['ip'], port_data['port'], port_data['service'], port_data['version']))
+            else:
+                raise ValueError("Invalid type for host_data['ports']")
 
         conn.commit()
         conn.close()
+        return None
 
 
 class ProjectDb:
-    def __init__(self):
+    def __init__(self) -> None:
         self.project_root_dir = "{}/db/data/projects/".format(TerminalData.root_dir)
         self.default_project_db_file = "{}/db/data/internal/projects.db".format(TerminalData.root_dir)
 
-    def create_sqlite_db(self, name, description, config):
+    def create_sqlite_db(self, name: str, description: str, config: str) -> None:
         conn = sqlite3.connect(self.default_project_db_file)
         cursor = conn.cursor()
 
@@ -95,22 +103,23 @@ class ProjectDb:
             print("Project {} already exists in the database, please use a different project name or delete the existing one.".format(name))
             conn.commit()
             conn.close()
-            return 0
+            return None
         cursor.execute("INSERT INTO projects (name, description, config) VALUES (?, ?, ?)",
                     (name, description, config))
         conn.commit()
         conn.close()
+        return None
 
-    def exists(self, name):
+    def exists(self, name: str) -> bool:
         conn = sqlite3.connect(self.default_project_db_file)
         cursor = conn.cursor()
         results = cursor.execute("SELECT name FROM projects WHERE name = ?", (name,)).fetchall()
         if results:
-            return 1
+            return True
         else:
-            return 0
+            return False
 
-    def list_all_projects(self):
+    def list_all_projects(self) -> list[tuple[str]]:
         conn = sqlite3.connect(self.default_project_db_file)
         cursor = conn.execute("SELECT name FROM projects")
         results = cursor.fetchall()
@@ -121,19 +130,88 @@ class ProjectDb:
             conn.close()
             return [("No projects found... Create one with hihi command!",)] # Don't worry... too lazy
 
-    def delete_project(self, name):
+    def delete_project(self, name: str) -> None:
         conn = sqlite3.connect(self.default_project_db_file)
         cursor = conn.cursor()
         cursor.execute("DELETE FROM projects WHERE name = ?", (name,))
         conn.commit()
         conn.close()
+        return None
 
-    def get_project_info(self, name):
+    def get_project_info(self, name: str) -> list[tuple[str]]:
         conn = sqlite3.connect(self.default_project_db_file)
         cursor = conn.cursor()
         results = cursor.execute("SELECT name, description, config FROM projects WHERE name = ?", (name,)).fetchall()
         conn.close()
         return results
+
+
+class NetStormer:
+    def __init__(self, excluded_ips: list[str], ports: list[str] | None) -> None:
+        self.current_project_db_dir = "{}/db/data/projects/{}/".format(TerminalData.root_dir, TerminalData.current_project)
+        all_files = os.listdir(self.current_project_db_dir)
+        self.scan_files = [file for file in all_files if file.endswith(".db")]
+        self.excluded_ips = excluded_ips
+        self.ports = ports
+
+    def get_sprayable_ips(self) -> list[list[tuple[str, int | None]]]:  # TODO INSPECT CODE FLOW PLEASE, NOT SURE IF THERE ARE BUGS
+        sprayable_ips = []
+        for scan in self.scan_files:
+            conn = sqlite3.connect("{}{}".format(self.current_project_db_dir, scan))
+            cursor = conn.cursor()
+            #print(self.ports)
+            if self.ports is None:
+                query = "SELECT DISTINCT ip, NULL FROM hosts"
+                results = cursor.execute(query).fetchall()
+                #print(results)
+            else:
+                query = "SELECT ip, port FROM hosts WHERE port IN ({})".format(','.join(['?'] * len(self.ports)))
+                results = cursor.execute(query, self.ports).fetchall()
+            sprayable_ips.append(results)
+        print("HIHIHIIH: {}".format(sprayable_ips))
+        return sprayable_ips
+
+    def get_all_ips(self) -> list[list[tuple[str, None]]]:  # TODO Probably can be removed, as the function above does this.
+        all_ips = []
+        for scan in self.scan_files:
+            conn = sqlite3.connect("{}{}".format(self.current_project_db_dir, scan))
+            cursor = conn.cursor()
+            query = "SELECT DISTINCT ip, NULL FROM hosts"
+            results = cursor.execute(query).fetchall()
+            all_ips.append(results)
+
+        return all_ips
+
+
+def display_database_data(database_path: str) -> None:
+    try:
+        # Connect to the SQLite database
+        connection = sqlite3.connect(database_path)
+        cursor = connection.cursor()
+
+        # Execute a SELECT query to fetch all rows from the table
+        cursor.execute("SELECT * FROM hosts")
+        rows = cursor.fetchall()
+
+        # Display the header
+        print("{:<5} {:<15} {:<10} {:<20} {:<15}".format("ID", "IP", "Port", "Service Name", "Version"))
+        print("="*65)
+
+        # Display each row
+        for row in rows:
+            print("{:<5} {:<15} {:<10} {:<20} {:<15}".format(*row))
+
+    except sqlite3.Error as e:
+        print("Error accessing the database:", e)
+        return None
+
+    finally:
+        # Close the database connection
+        if connection:
+            connection.close()
+            return None
+        return None
+
 
 class ManipulateUsers:
 
@@ -216,4 +294,3 @@ class ManipulateUsers:
             conn.commit()
             print(f"Password for user '{user}' updated successfully.")
         conn.close()
-
