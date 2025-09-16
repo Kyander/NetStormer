@@ -157,7 +157,7 @@ def handle_command_with_ports(spray_command: str, re_ip: list[str], re_ports: li
     if omitted:
         ports = [port.strip() for port in re_ports]
     else:
-        ports = re_ports[0][0].split(",")  # turn tuple into list of ports
+        ports = re_ports[0][0].split(",")  # turn tuple into a list of ports
         print("port = {}".format(ports))
 
     replaced = re.sub(pattern_ip, re_ip[0], spray_command)
@@ -170,9 +170,9 @@ def handle_command_with_ports(spray_command: str, re_ip: list[str], re_ports: li
         s.run_live_command(live_command)
         s.spray()
         return None
-    except Exception as e:  # TODO theres probably a better way to check if the command is valid
-        print("Invalid Command : {}".format(live_command))
-        print("Error : {}".format(str(e)))
+    except Exception as e:  # TODO there's probably a better way to check if the command is valid
+        print("Invalid Command: {}".format(live_command))
+        print("Error: {}".format(str(e)))
         return None
 
 
