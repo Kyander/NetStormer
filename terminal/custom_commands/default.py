@@ -161,7 +161,7 @@ def handle_command_with_ports(spray_command: str, re_ip: list[str], re_ports: li
         print("port = {}".format(ports))
 
     replaced = re.sub(pattern_ip, re_ip[0], spray_command)
-    # print(replaced)
+    
 
     live_command = re.sub(pattern_port, ports[0], replaced)
     excluded_ips.append(re_ip[0])
